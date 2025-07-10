@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NutriTrack - Diet & Health Tracker</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="container">
+    <h1>🍎 NutriTrack</h1>
+    <p>Personalized Diet & Health Tracker</p>
+
+    <form method="POST" action="/">
+      <input type="text" name="name" placeholder="Your Name" required>
+      <input type="number" name="age" placeholder="Age" required>
+      <select name="gender" required>
+        <option value="" disabled selected>Gender</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+      </select>
+      <input type="number" name="height" placeholder="Height (in cm)" required>
+      <input type="number" name="weight" placeholder="Weight (in kg)" required>
+      <select name="goal" required>
+        <option value="" disabled selected>Health Goal</option>
+        <option value="lose">Lose Weight</option>
+        <option value="maintain">Maintain Weight</option>
+        <option value="gain">Gain Weight</option>
+      </select>
+      <button type="submit">Calculate</button>
+    </form>
+
+    {% if result %}
+      <div class="output">
+        <h2>Hi {{ result.name }} 👋</h2>
+        <p>BMI: {{ result.bmi }} ({{ result.bmi_status }})</p>
+        <p>Recommended Daily Calories: {{ result.calories }} kcal</p>
+        <p>Water Intake: {{ result.water }} L/day</p>
+        <p>Goal Advice: {{ result.advice }}</p>
+        <p><strong>Predicted Weight after 30 days:</strong> {{ result.future_weight }} kg</p>
+      </div>
+    {% endif %}
+
+    {% if history %}
+      <h3>📄 Submission History</h3>
+      <div class="history">
+        <table>
+          <tr>
+            <th>Name</th><th>Age</th><th>Gender</th><th>Height</th><th>Weight</th>
+            <th>Goal</th><th>BMI</th><th>Status</th><th>Calories</th><th>Water</th><th>Predicted Weight</th>
+          </tr>
+          {% for row in history %}
+            <tr>
+              {% for item in row %}
+                <td>{{ item }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </table>
+      </div>
+    {% endif %}
+  </div>
+</body>
+</html>
