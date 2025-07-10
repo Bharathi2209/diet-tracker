@@ -2,99 +2,59 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>NutriTrack - History</title>
+  <title>History - NutriTrack</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <style>
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 30px 0;
-      font-size: 16px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
-
-    th, td {
-      border: 1px solid #ddd;
-      padding: 10px;
-      text-align: center;
-    }
-
-    th {
-      background-color: #007acc;
-      color: white;
-    }
-
-    h1, h2 {
-      color: #007acc;
-    }
-
-    img {
-      max-width: 100%;
-      margin: 20px 0;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-    }
-
-    .container {
-      max-width: 1100px;
-      margin: auto;
-      padding: 20px;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    a.btn {
-      display: inline-block;
-      margin-top: 10px;
-      padding: 10px 20px;
-      background-color: #007acc;
-      color: #fff;
-      text-decoration: none;
-      border-radius: 6px;
-    }
-
-    a.btn:hover {
-      background-color: #005b99;
-    }
-  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>📖 NutriTrack History</h1>
-    <a href="/" class="btn">⬅ Back to Home</a>
-    <a href="/chart" class="btn">🔄 Refresh Charts</a>
+  <div class="theme-toggle">
+    <label class="switch">
+      <input type="checkbox" id="modeToggle">
+      <span class="slider round"></span>
+    </label>
+    <span id="modeLabel">Light Mode</span>
+  </div>
 
+  <div class="container">
+    <h1>📋 User History</h1>
     {% if records %}
       <table>
         <thead>
           <tr>
-            {% for col in header %}
-              <th>{{ col }}</th>
-            {% endfor %}
+            <th>Name</th><th>Age</th><th>Gender</th><th>Height</th><th>Weight</th>
+            <th>Goal</th><th>BMI</th><th>Calories</th><th>Water</th><th>Advice</th><th>Predicted Weight</th>
           </tr>
         </thead>
         <tbody>
           {% for row in records %}
             <tr>
-              {% for value in row %}
-                <td>{{ value }}</td>
+              {% for item in row %}
+                <td>{{ item }}</td>
               {% endfor %}
             </tr>
           {% endfor %}
         </tbody>
       </table>
 
-      <h2>📊 Actual vs Predicted Weight</h2>
-      <img src="{{ url_for('static', filename='chart_weight.png') }}" alt="Weight Chart" />
-
-      <h2>🔥 Recommended Daily Calories</h2>
-      <img src="{{ url_for('static', filename='chart_calories.png') }}" alt="Calories Chart" />
-
-      <h2>📉 BMI Distribution</h2>
-      <img src="{{ url_for('static', filename='chart_bmi.png') }}" alt="BMI Chart" />
-
+      <img id="lightChart" src="{{ url_for('static', filename='weight_chart_light.png') }}" alt="Weight Chart" class="chart">
+      <img id="darkChart" src="{{ url_for('static', filename='weight_chart_dark.png') }}" alt="Weight Chart" class="chart hidden">
     {% else %}
-      <p>No history records found yet.</p>
+      <p>No history yet.</p>
     {% endif %}
+    <a href="/" class="link-btn">🏠 Back to Home</a>
   </div>
+
+  <script>
+    const toggle = document.getElementById('modeToggle');
+    const label = document.getElementById('modeLabel');
+    const lightChart = document.getElementById('lightChart');
+    const darkChart = document.getElementById('darkChart');
+
+    toggle.addEventListener('change', () => {
+      document.body.classList.toggle('dark-mode');
+      label.textContent = toggle.checked ? 'Dark Mode' : 'Light Mode';
+      lightChart.classList.toggle('hidden');
+      darkChart.classList.toggle('hidden');
+    });
+  </script>
 </body>
 </html>

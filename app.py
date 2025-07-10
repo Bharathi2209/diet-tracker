@@ -1,149 +1,121 @@
-from flask import Flask, render_template, request, send_file
-from sklearn.linear_model import LinearRegression
-import numpy as np
-import csv
+from flask import Flask, render_template, request
+import joblib
 import os
+import csv
+import pandas as pd
 import matplotlib.pyplot as plt
 
 app = Flask(__name__)
+model = joblib.load("model.pkl")
 
-# Dummy training data
-model = LinearRegression()
-X = [
-    [25, 170, 60, 0, 1],
-    [30, 160, 70, 1, 0],
-    [22, 180, 75, 2, 1],
-    [40, 165, 68, 1, 0],
-    [28, 172, 62, 0, 1]
-]
-y = [65, 70, 78, 68, 64]
-model.fit(X, y)
+def calculate_bmi(height, weight):
+    height_m = height / 100
+    bmi = weight / (height_m ** 2)
+    return round(bmi, 1)
+
+def get_bmi_status(bmi):
+    if bmi < 18.5:
+        return "Underweight"
+    elif bmi < 25:
+        return "Normal"
+    elif bmi < 30:
+        return "Overweight"
+    else:
+        return "Obese"
+
+def get_goal_advice(goal, bmi):
+    if bmi < 18.5:
+        return "You're underweight. Increase healthy calories and consult a dietitian."
+    elif 18.5 <= bmi <= 24.9:
+        return "You have a healthy weight. Keep up your balanced habits!"
+    elif bmi >= 25:
+        return "You're overweight. Focus on reducing calories and staying active."
+    return "Maintain a healthy lifestyle."
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    result = None
     if request.method == "POST":
-        name = request.form["name"]
-        age = int(request.form["age"])
-        gender = request.form["gender"]
-        height = float(request.form["height"])
-        weight = float(request.form["weight"])
-        goal = request.form["goal"]
+        try:
+            name = request.form["name"]
+            age = int(request.form["age"])
+            gender = request.form["gender"].lower()
+            height = float(request.form["height"])
+            weight = float(request.form["weight"])
+            goal = request.form["goal"].lower()
 
-        height_m = height / 100
-        bmi = round(weight / (height_m ** 2), 2)
-        if bmi < 18.5:
-            bmi_status = "Underweight"
-        elif 18.5 <= bmi < 25:
-            bmi_status = "Normal"
-        elif 25 <= bmi < 30:
-            bmi_status = "Overweight"
-        else:
-            bmi_status = "Obese"
+            if age <= 0 or height <= 0 or weight <= 0:
+                raise ValueError("All values must be positive.")
 
-        if gender == "male":
-            calories = round(10 * weight + 6.25 * height - 5 * age + 5)
-        else:
-            calories = round(10 * weight + 6.25 * height - 5 * age - 161)
+            bmi = calculate_bmi(height, weight)
+            bmi_status = get_bmi_status(bmi)
+            calories = round(10 * weight + 6.25 * height - 5 * age + (5 if gender == "male" else -161))
+            water = round(weight * 0.033, 2)
+            advice = get_goal_advice(goal, bmi)
 
-        if goal == "lose":
-            calories -= 500
-            advice = "Focus on a calorie deficit with high protein intake."
-            goal_code = 0
-        elif goal == "maintain":
-            advice = "Maintain balanced diet and regular activity."
-            goal_code = 1
-        else:
-            calories += 300
-            advice = "Add calorie surplus with strength training."
-            goal_code = 2
+            gender_num = 1 if gender == "male" else 0
+            goal_map = {"lose": 0, "maintain": 1, "gain": 2}
+            goal_num = goal_map.get(goal, 1)
 
-        water = round(weight * 0.033, 2)
-        gender_code = 1 if gender == "male" else 0
-        predicted_weight = round(model.predict([[age, height, weight, goal_code, gender_code]])[0], 2)
+            features = [[age, height, weight, gender_num, goal_num]]
+            predicted_weight = round(model.predict(features)[0], 2)
 
-        result = {
-            "name": name,
-            "bmi": bmi,
-            "bmi_status": bmi_status,
-            "calories": calories,
-            "water": water,
-            "advice": advice,
-            "predicted_weight": predicted_weight
-        }
+            # Save to CSV
+            file_exists = os.path.isfile("history.csv")
+            with open("history.csv", "a", newline="") as f:
+                writer = csv.writer(f)
+                if not file_exists:
+                    writer.writerow(["Name", "Age", "Gender", "Height", "Weight", "Goal", "BMI", "Calories", "Water", "Advice", "Predicted_Weight"])
+                writer.writerow([name, age, gender, height, weight, goal, bmi, calories, water, advice, predicted_weight])
 
-        file_exists = os.path.isfile("history.csv")
-        with open("history.csv", mode="a", newline="") as file:
-            writer = csv.writer(file)
-            if not file_exists:
-                writer.writerow(["Name", "Age", "Gender", "Height", "Weight", "Goal", "BMI", "Calories", "Water", "Advice", "Predicted_Weight"])
-            writer.writerow([name, age, gender, height, weight, goal, bmi, calories, water, advice, predicted_weight])
+            result = {
+                "name": name,
+                "bmi": bmi,
+                "bmi_status": bmi_status,
+                "calories": calories,
+                "water": water,
+                "advice": advice,
+                "predicted_weight": predicted_weight
+            }
 
-    return render_template("index.html", result=result)
+            return render_template("index.html", result=result)
+
+        except Exception as e:
+            return render_template("index.html", error=str(e))
+
+    return render_template("index.html")
 
 @app.route("/history")
 def history():
     records = []
-    header = []
-    if os.path.isfile("history.csv"):
-        with open("history.csv", newline='') as file:
-            reader = csv.reader(file)
-            header = next(reader)
-            records = list(reader)
-    return render_template("history.html", header=header, records=records)
+    if os.path.exists("history.csv"):
+        df = pd.read_csv("history.csv")
+        records = df.values.tolist()
 
-@app.route("/chart")
-def chart():
-    if not os.path.isfile("history.csv"):
-        return "No data available"
+        # Light mode chart
+        plt.figure(figsize=(10, 5))
+        df.groupby("Name")["Weight"].last().plot(kind='bar', color='tomato')
+        plt.title("Latest Recorded Weight by User", color='black')
+        plt.ylabel("Weight (kg)", color='black')
+        plt.xticks(color='black', rotation=45)
+        plt.yticks(color='black')
+        plt.tight_layout()
+        plt.savefig("static/weight_chart_light.png")
+        plt.close()
 
-    names, weights, predicted, calories, bmis = [], [], [], [], []
+        # Dark mode chart
+        plt.style.use('dark_background')
+        plt.figure(figsize=(10, 5))
+        df.groupby("Name")["Weight"].last().plot(kind='bar', color='skyblue')
+        plt.title("Latest Recorded Weight by User", color='white')
+        plt.ylabel("Weight (kg)", color='white')
+        plt.xticks(color='white', rotation=45)
+        plt.yticks(color='white')
+        plt.tight_layout()
+        plt.savefig("static/weight_chart_dark.png")
+        plt.close()
 
-    with open("history.csv", newline='') as file:
-        reader = csv.reader(file)
-        next(reader)
-        for row in reader:
-            names.append(row[0])
-            weights.append(float(row[4]))
-            predicted.append(float(row[10]))
-            calories.append(float(row[7]))
-            bmis.append(float(row[6]))
+    return render_template("history.html", records=records)
 
-    # Weight Bar Chart
-    x = np.arange(len(names))
-    width = 0.35
-    plt.figure(figsize=(10, 5))
-    plt.bar(x - width/2, weights, width, label='Actual')
-    plt.bar(x + width/2, predicted, width, label='Predicted')
-    plt.xticks(x, names, rotation=30)
-    plt.ylabel('Weight (kg)')
-    plt.title('Actual vs Predicted Weight')
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig("static/chart_weight.png")
-    plt.close()
-
-    # Calorie Bar Chart
-    plt.figure(figsize=(10, 5))
-    plt.bar(names, calories, color='orange')
-    plt.xticks(rotation=30)
-    plt.ylabel('Calories')
-    plt.title('Recommended Daily Calories')
-    plt.tight_layout()
-    plt.savefig("static/chart_calories.png")
-    plt.close()
-
-    # BMI Bar Chart
-    plt.figure(figsize=(10, 5))
-    plt.bar(names, bmis, color='green')
-    plt.xticks(rotation=30)
-    plt.ylabel('BMI')
-    plt.title('BMI Distribution')
-    plt.tight_layout()
-    plt.savefig("static/chart_bmi.png")
-    plt.close()
-
-    return "Bar charts generated."
 
 if __name__ == "__main__":
     app.run(debug=True)
