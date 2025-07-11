@@ -2,59 +2,38 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>History - NutriTrack</title>
+  <title>NutriTrack History</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <div class="theme-toggle">
-    <label class="switch">
-      <input type="checkbox" id="modeToggle">
-      <span class="slider round"></span>
-    </label>
-    <span id="modeLabel">Light Mode</span>
-  </div>
-
   <div class="container">
-    <h1>📋 User History</h1>
+    <h1>📋 History</h1>
+
     {% if records %}
       <table>
-        <thead>
+        <tr>
+          <th>Name</th><th>Date</th><th>Weight</th><th>BMI</th><th>Diabetes</th>
+          <th>Calories</th><th>Predicted</th>
+        </tr>
+        {% for r in records %}
           <tr>
-            <th>Name</th><th>Age</th><th>Gender</th><th>Height</th><th>Weight</th>
-            <th>Goal</th><th>BMI</th><th>Calories</th><th>Water</th><th>Advice</th><th>Predicted Weight</th>
+            <td>{{ r.name }}</td>
+            <td>{{ r.created_at.strftime('%Y-%m-%d') }}</td>
+            <td>{{ r.weight }}</td>
+            <td>{{ r.bmi }}</td>
+            <td>{{ 'Yes' if r.diabetes else 'No' }}</td>
+            <td>{{ r.calories }}</td>
+            <td>{{ r.predicted }}</td>
           </tr>
-        </thead>
-        <tbody>
-          {% for row in records %}
-            <tr>
-              {% for item in row %}
-                <td>{{ item }}</td>
-              {% endfor %}
-            </tr>
-          {% endfor %}
-        </tbody>
+        {% endfor %}
       </table>
 
-      <img id="lightChart" src="{{ url_for('static', filename='weight_chart_light.png') }}" alt="Weight Chart" class="chart">
-      <img id="darkChart" src="{{ url_for('static', filename='weight_chart_dark.png') }}" alt="Weight Chart" class="chart hidden">
+      <img id="lightChart" src="{{ url_for('static', filename='weight_chart_light.png') }}" class="chart">
     {% else %}
-      <p>No history yet.</p>
+      <p>No records yet.</p>
     {% endif %}
-    <a href="/" class="link-btn">🏠 Back to Home</a>
+
+    <a href="{{ url_for('index') }}" class="link-btn">🏠 Home</a>
   </div>
-
-  <script>
-    const toggle = document.getElementById('modeToggle');
-    const label = document.getElementById('modeLabel');
-    const lightChart = document.getElementById('lightChart');
-    const darkChart = document.getElementById('darkChart');
-
-    toggle.addEventListener('change', () => {
-      document.body.classList.toggle('dark-mode');
-      label.textContent = toggle.checked ? 'Dark Mode' : 'Light Mode';
-      lightChart.classList.toggle('hidden');
-      darkChart.classList.toggle('hidden');
-    });
-  </script>
 </body>
 </html>
