@@ -4,119 +4,36 @@
   <meta charset="UTF-8">
   <title>NutriTrack History</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #f0f2f5;
-      color: #333;
-      padding: 20px;
-    }
-    .container {
-      max-width: 1000px;
-      margin: auto;
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
-    }
-    h1 {
-      text-align: center;
-      color: #2c3e50;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-    }
-    th, td {
-      padding: 10px 12px;
-      border: 1px solid #ccc;
-      text-align: center;
-    }
-    th {
-      background: #3498db;
-      color: white;
-    }
-    tr:nth-child(even) {
-      background: #f9f9f9;
-    }
-    .chart {
-      width: 100%;
-      margin-top: 30px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-    }
-    .link-btn {
-      display: inline-block;
-      margin-top: 20px;
-      padding: 10px 20px;
-      text-decoration: none;
-      background: #2ecc71;
-      color: white;
-      border-radius: 5px;
-    }
-    .link-btn:hover {
-      background: #27ae60;
-    }
-  </style>
 </head>
 <body>
   <div class="container">
-    <h1>📋 NutriTrack History</h1>
+    <h1>📋 History</h1>
 
     {% if records %}
       <table>
         <tr>
-          <th>Name</th>
-          <th>Age</th>
-          <th>Gender</th>
-          <th>Weight</th>
-          <th>BMI</th>
-          <th>Diabetes</th>
-          <th>Calories</th>
-          <th>Water (L)</th>
-          <th>Predicted</th>
-          <th>Date</th>
+          <th>Name</th><th>Date</th><th>Weight</th><th>BMI</th><th>Diabetes</th>
+          <th>Calories</th><th>Predicted</th>
         </tr>
         {% for r in records %}
           <tr>
-            <td>{{ r[0] }}</td>  <!-- Name -->
-            <td>{{ r[1] }}</td>  <!-- Age -->
-            <td>{{ r[2] }}</td>  <!-- Gender -->
-            <td>{{ r[4] }}</td>  <!-- Weight -->
-            <td>{{ r[6] }}</td>  <!-- BMI -->
-            <td>
-              {% if r|length > 12 %}
-                {{ 'Yes' if r[12] else 'No' }}
-              {% else %}
-                N/A
-              {% endif %}
-            </td>
-            <td>{{ r[7] }}</td>  <!-- Calories -->
-            <td>{{ r[8] }}</td>  <!-- Water -->
-            <td>{{ r[10] }}</td> <!-- Predicted -->
-            <td>
-              {% if r|length > 11 and r[11] %}
-                {{ r[11].strftime('%Y-%m-%d') }}
-              {% else %}
-                N/A
-              {% endif %}
-            </td>
+            <td>{{ r.name }}</td>
+            <td>{{ r.created_at.strftime('%Y-%m-%d') }}</td>
+            <td>{{ r.weight }}</td>
+            <td>{{ r.bmi }}</td>
+            <td>{{ 'Yes' if r.diabetes else 'No' }}</td>
+            <td>{{ r.calories }}</td>
+            <td>{{ r.predicted }}</td>
           </tr>
         {% endfor %}
       </table>
 
-      {% if records|length > 0 %}
-        <img id="lightChart" src="{{ url_for('static', filename='weight_chart_light.png') }}" class="chart" alt="Weight Chart">
-      {% endif %}
-
+      <img id="lightChart" src="{{ url_for('static', filename='weight_chart_light.png') }}" class="chart">
     {% else %}
-      <p style="text-align:center;">No history records available yet.</p>
+      <p>No records yet.</p>
     {% endif %}
 
-    <div style="text-align:center;">
-      <a href="{{ url_for('index') }}" class="link-btn">🏠 Back to Home</a>
-    </div>
+    <a href="{{ url_for('index') }}" class="link-btn">🏠 Home</a>
   </div>
 </body>
 </html>
