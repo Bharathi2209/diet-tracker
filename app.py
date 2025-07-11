@@ -1,71 +1,93 @@
 from flask import Flask, render_template, request
-import joblib
 import os
 import csv
+import joblib
 import pandas as pd
 import matplotlib.pyplot as plt
 
+# ────────────────────────────────────────────────────────────────────────────
+# 1) Auto‑train the model if model.pkl is not found (first deploy on Render)
+# ────────────────────────────────────────────────────────────────────────────
+MODEL_PATH = "model.pkl"
+
+if not os.path.exists(MODEL_PATH):
+    print("⚙️  model.pkl not found – training model on server…")
+    # Try to import a function `train_and_save_model()` from train_model.py
+    try:
+        from train_model import train_and_save_model
+        train_and_save_model()               # generates model.pkl
+    except ImportError:
+        # Fallback: run the script directly
+        import subprocess, sys
+        subprocess.check_call([sys.executable, "train_model.py"])
+
+# Load the freshly‑created (or existing) model
+model = joblib.load(MODEL_PATH)
+
+# ────────────────────────────────────────────────────────────────────────────
+# 2) Flask setup
+# ────────────────────────────────────────────────────────────────────────────
 app = Flask(__name__)
-model = joblib.load("model.pkl")
 
 def calculate_bmi(height, weight):
-    height_m = height / 100
-    bmi = weight / (height_m ** 2)
-    return round(bmi, 1)
+    bmiv = weight / ((height / 100) ** 2)
+    return round(bmiv, 1)
 
 def get_bmi_status(bmi):
     if bmi < 18.5:
         return "Underweight"
-    elif bmi < 25:
+    if bmi < 25:
         return "Normal"
-    elif bmi < 30:
+    if bmi < 30:
         return "Overweight"
-    else:
-        return "Obese"
+    return "Obese"
 
-def get_goal_advice(goal, bmi):
+def get_bmi_advice(bmi):
     if bmi < 18.5:
-        return "You're underweight. Increase healthy calories and consult a dietitian."
-    elif 18.5 <= bmi <= 24.9:
-        return "You have a healthy weight. Keep up your balanced habits!"
-    elif bmi >= 25:
-        return "You're overweight. Focus on reducing calories and staying active."
-    return "Maintain a healthy lifestyle."
+        return "You're underweight. Increase nutritious calories and consider resistance training."
+    if bmi < 25:
+        return "Healthy weight! Maintain balanced diet and regular activity."
+    return "You're overweight. Focus on calorie control and increased physical activity."
 
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
         try:
-            name = request.form["name"]
-            age = int(request.form["age"])
-            gender = request.form["gender"].lower()
-            height = float(request.form["height"])
-            weight = float(request.form["weight"])
-            goal = request.form["goal"].lower()
+            name    = request.form["name"]
+            age     = int(request.form["age"])
+            gender  = request.form["gender"].lower()
+            height  = float(request.form["height"])
+            weight  = float(request.form["weight"])
+            goal    = request.form["goal"].lower()
 
-            if age <= 0 or height <= 0 or weight <= 0:
-                raise ValueError("All values must be positive.")
+            if any(v <= 0 for v in (age, height, weight)):
+                raise ValueError("Age, height, and weight must be positive numbers.")
 
-            bmi = calculate_bmi(height, weight)
+            bmi        = calculate_bmi(height, weight)
             bmi_status = get_bmi_status(bmi)
-            calories = round(10 * weight + 6.25 * height - 5 * age + (5 if gender == "male" else -161))
-            water = round(weight * 0.033, 2)
-            advice = get_goal_advice(goal, bmi)
+            advice     = get_bmi_advice(bmi)
+            calories   = round(10 * weight + 6.25 * height - 5 * age + (5 if gender == "male" else -161))
+            water      = round(weight * 0.033, 2)
 
             gender_num = 1 if gender == "male" else 0
-            goal_map = {"lose": 0, "maintain": 1, "gain": 2}
-            goal_num = goal_map.get(goal, 1)
+            goal_map   = {"lose": 0, "maintain": 1, "gain": 2}
+            goal_num   = goal_map.get(goal, 1)
 
-            features = [[age, height, weight, gender_num, goal_num]]
-            predicted_weight = round(model.predict(features)[0], 2)
+            predicted_weight = round(
+                model.predict([[age, height, weight, gender_num, goal_num]])[0], 2
+            )
 
-            # Save to CSV
+            # Save history ----------------------------------------------------
+            new_row = [name, age, gender, height, weight, goal, bmi,
+                       calories, water, advice, predicted_weight]
             file_exists = os.path.isfile("history.csv")
             with open("history.csv", "a", newline="") as f:
                 writer = csv.writer(f)
                 if not file_exists:
-                    writer.writerow(["Name", "Age", "Gender", "Height", "Weight", "Goal", "BMI", "Calories", "Water", "Advice", "Predicted_Weight"])
-                writer.writerow([name, age, gender, height, weight, goal, bmi, calories, water, advice, predicted_weight])
+                    writer.writerow(["Name", "Age", "Gender", "Height", "Weight",
+                                     "Goal", "BMI", "Calories", "Water",
+                                     "Advice", "Predicted_Weight"])
+                writer.writerow(new_row)
 
             result = {
                 "name": name,
@@ -74,9 +96,8 @@ def index():
                 "calories": calories,
                 "water": water,
                 "advice": advice,
-                "predicted_weight": predicted_weight
+                "predicted_weight": predicted_weight,
             }
-
             return render_template("index.html", result=result)
 
         except Exception as e:
@@ -91,31 +112,34 @@ def history():
         df = pd.read_csv("history.csv")
         records = df.values.tolist()
 
-        # Light mode chart
+        # Light chart
         plt.figure(figsize=(10, 5))
-        df.groupby("Name")["Weight"].last().plot(kind='bar', color='tomato')
-        plt.title("Latest Recorded Weight by User", color='black')
-        plt.ylabel("Weight (kg)", color='black')
-        plt.xticks(color='black', rotation=45)
-        plt.yticks(color='black')
+        df.groupby("Name")["Weight"].last().plot(kind="bar", color="tomato")
+        plt.ylabel("Weight (kg)", color="black")
+        plt.title("Latest Recorded Weight by User", color="black")
+        plt.xticks(rotation=45, color="black")
+        plt.yticks(color="black")
         plt.tight_layout()
         plt.savefig("static/weight_chart_light.png")
         plt.close()
 
-        # Dark mode chart
-        plt.style.use('dark_background')
+        # Dark chart
+        plt.style.use("dark_background")
         plt.figure(figsize=(10, 5))
-        df.groupby("Name")["Weight"].last().plot(kind='bar', color='skyblue')
-        plt.title("Latest Recorded Weight by User", color='white')
-        plt.ylabel("Weight (kg)", color='white')
-        plt.xticks(color='white', rotation=45)
-        plt.yticks(color='white')
+        df.groupby("Name")["Weight"].last().plot(kind="bar", color="skyblue")
+        plt.ylabel("Weight (kg)", color="white")
+        plt.title("Latest Recorded Weight by User", color="white")
+        plt.xticks(rotation=45, color="white")
+        plt.yticks(color="white")
         plt.tight_layout()
         plt.savefig("static/weight_chart_dark.png")
         plt.close()
 
     return render_template("history.html", records=records)
 
-
+# ────────────────────────────────────────────────────────────────────────────
+# 3) Bind to Render‑provided PORT
+# ────────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
