@@ -15,6 +15,9 @@ MODEL_PATH = "model.pkl"
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = DB_PATH
 db = SQLAlchemy(app)
+with app.app_context():
+    db.create_all()
+
 
 # ───────────────────────────────────────────────────────────────
 # DB Model
@@ -35,7 +38,9 @@ class Record(db.Model):
     predicted   = db.Column(db.Float)
     created_at  = db.Column(db.DateTime, default=datetime.utcnow)
 
-db.create_all()
+with app.app_context():
+    db.create_all()
+
 
 # ───────────────────────────────────────────────────────────────
 # ML model – auto‑train if missing
